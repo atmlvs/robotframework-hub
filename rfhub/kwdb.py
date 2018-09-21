@@ -51,6 +51,7 @@ class WatchdogHandler(PatternMatchingEventHandler):
     def on_modified(self, event):
         self.kwdb.on_change(event.src_path, event.event_type)
 
+
 class KeywordTable(object):
     """A SQLite database of keywords"""
 
@@ -65,6 +66,7 @@ class KeywordTable(object):
         # of keyword files)
         self.observer =  PollingObserver() if poll else Observer()
         self.observer.start()
+        self.exclude_patterns = []
 
     def add(self, name, monitor=True):
         """Add a folder, library (.py) or resource file (.robot, .tsv, .txt) to the database
@@ -167,15 +169,16 @@ class KeywordTable(object):
         """
 
         ignore_file = os.path.join(dirname, ".rfhubignore")
-        exclude_patterns = []
         try:
             with open(ignore_file, "r") as f:
+                print("loaded .rfhubignore from " + ignore_file)
                 exclude_patterns = []
                 for line in f.readlines():
                     line = line.strip()
                     if (re.match(r'^\s*#', line)): continue
                     if len(line.strip()) > 0:
-                        exclude_patterns.append(line)
+                        self.exclude_patterns.append(line)
+                print("ignore files: " + str(self.exclude_patterns))
         except:
             # should probably warn the user?
             pass
@@ -191,7 +194,7 @@ class KeywordTable(object):
                             self.add_folder(path, watch=False)
                 else:
                     if (ext in (".xml", ".robot", ".txt", ".py", ".tsv")):
-                        if os.access(path, os.R_OK):
+                        if os.access(path, os.R_OK) and filename not in self.exclude_patterns and not filename.startswith('_'):
                             self.add(path)
             except Exception as e:
                 # I really need to get the logging situation figured out.
